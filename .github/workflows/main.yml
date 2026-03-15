@@ -9,11 +9,12 @@ jobs:
     timeout-minutes: 720
 
     steps:
-    - name: Enable RDP
-      run: |
-        net user runneradmin Password123! /add
-        net localgroup administrators runneradmin /add
-        net start termservice
+    l- name: Enable RDP
+  run: |
+    net user runneradmin Password123! /add || echo User already exists
+    net localgroup administrators runneradmin /add || echo Already admin
+    reg add "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+    net start TermService
 
     - name: Download ngrok
       run: |

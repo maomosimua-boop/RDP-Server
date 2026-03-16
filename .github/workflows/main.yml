@@ -9,12 +9,17 @@ jobs:
     timeout-minutes: 720
 
     steps:
-    l- name: Enable RDP
-  run: |
-    net user runneradmin Password123! /add || echo User already exists
-    net localgroup administrators runneradmin /add || echo Already admin
-    reg add "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
-    net start TermService
+    - name: Enable RDP
+   shell: pwsh
+   run: |
+    $user = "runneradmin"
+    if (-not (Get-LocalUser -Name $user -ErrorAction SilentlyContinue)) {
+      net user $user "Password123!" /add
+      net localgroup "Remote Desktop Users" $user /add
+    }
+    # Enable RDP if not already enabled
+    Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+    Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
     - name: Download ngrok
       run: |

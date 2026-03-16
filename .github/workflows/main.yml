@@ -10,16 +10,40 @@ jobs:
 
     steps:
     - name: Enable RDP
-   shell: pwsh
-   run: |
-    $user = "runneradmin"
-    if (-not (Get-LocalUser -Name $user -ErrorAction SilentlyContinue)) {
-      net user $user "Password123!" /add
-      net localgroup "Remote Desktop Users" $user /add
+  shell: pwsh
+  run: |
+    $username = "runneradmin"
+    $password = "Password123!"
+    
+    # Create user only if it does not exist
+    if (-not (Get-LocalUser -Name $username -ErrorAction SilentlyContinue)) {
+      net user $username $password /add
+    } else {
+      Write-Host "User $username already exists, skipping creation."
     }
+    
+    # Add user to Remote Desktop Users group (if not already a member)
+    $group = "Remote Desktop Users"
+    $userObj = Get-LocalUser -Name $username
+    $groupObj = Get-LocalGroup -Name $group
+    $members = Get-LocalGroupMember -Group $group | Where-Object { $_.Name -eq "$env:COMPUTERNAME\$username" }
+    if (-not $members) {
+      Add-LocalGroupMember -Group $group -Member $userObj
+    } else {
+      Write-Host "User already in $group, skipping."
+    }
+    
     # Enable RDP if not already enabled
-    Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
-    Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+    $rdpKey = "HKLM:\System\CurrentControlSet\Control\Terminal Server"
+    if ((Get-ItemProperty -Path $rdpKey -Name "fDenyTSConnections").fDenyTSConnections -ne 0) {
+      Set-ItemProperty -Path $rdpKey -Name "fDenyTSConnections" -Value 0
+      Write-Host "RDP enabled."
+    } else {
+      Write-Host "RDP already enabled."
+    }
+    
+    # Ensure firewall rule is enabled
+    Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
 
     - name: Download ngrok
       run: |
